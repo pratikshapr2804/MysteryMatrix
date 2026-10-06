@@ -1,0 +1,10 @@
+feature_id,feature_name,definition
+physical,Physical evidence,"A tangible object, material, or physical impression is documented as evidence."
+biological,Biological evidence,Biological material or DNA evidence is documented.
+digital,Digital evidence,"Digital, computer, electronic, or database information/device is documented as evidence."
+documentary,Documentary evidence,"A written, recorded, official, financial, or other documentary item is documented as evidence."
+communication,Communication evidence,"A relevant letter, message, email, statement, confession, or other communication is documented."
+location,Location association,The evidence item is specifically associated with a documented location or crime scene.
+forensic,Forensic analysis,Scientific or technical forensic examination or analysis is documented.
+testimonial,Testimonial evidence,"A witness, victim, investigator, or suspect statement/testimony is documented."
+financial,Financial evidence,"Financial, accounting, investment, banking, or transaction evidence is documented."
