@@ -1,0 +1,7 @@
+case_id,matrix_rows,matrix_columns,rank,pivot_columns,pivot_features
+FULL,43,9,9,"0,1,2,3,4,5,6,7,8","physical,biological,digital,documentary,communication,location,forensic,testimonial,financial"
+C01,10,9,7,"0,1,2,3,4,5,7","physical,biological,digital,documentary,communication,location,testimonial"
+C02,8,9,4,"0,1,5,6","physical,biological,location,forensic"
+C05,8,9,4,"2,3,4,5","digital,documentary,communication,location"
+C04,9,9,6,"0,3,4,5,6,8","physical,documentary,communication,location,forensic,financial"
+C03,8,9,5,"0,3,4,5,6","physical,documentary,communication,location,forensic"

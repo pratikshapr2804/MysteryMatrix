@@ -36,6 +36,12 @@ except Exception as _e:
     SimilarityLab = None
     print("Similarity lab unavailable:", _e)
 
+try:
+    from rank_lab import RankLab
+except Exception as _e:
+    RankLab = None
+    print("Rank lab unavailable:", _e)
+
 ROOT = Path(__file__).resolve().parent
 DISCLAIMER = ("Similarity compares encoded evidence-flag patterns only. It does not show that two real "
               "cases are connected and it does not prove anyone's guilt.")
@@ -45,10 +51,17 @@ class Game:
     def __init__(self):
         pygame.init()
         pygame.display.set_caption("MYSTERY MATRIX  |  Real Case Archive")
+        info = pygame.display.Info()
+        flags = pygame.SCALED
+        if info.current_h < H + 80 or info.current_w < W + 40:
+            flags = pygame.SCALED | pygame.FULLSCREEN
         try:
-            self.screen = pygame.display.set_mode((W, H), pygame.SCALED | pygame.RESIZABLE)
+            self.screen = pygame.display.set_mode((W, H), flags)
         except Exception:
-            self.screen = pygame.display.set_mode((W, H))
+            try:
+                self.screen = pygame.display.set_mode((W, H), pygame.SCALED)
+            except Exception:
+                self.screen = pygame.display.set_mode((W, H))
         ui.init_fonts()
         self.clock = pygame.time.Clock()
         self.ui = ui.UI(self.screen)
@@ -63,6 +76,7 @@ class Game:
         self.modal = None
         self.paused = False
         self.sim_lab = None
+        self.rank_lab = None
         rng = random.Random(3)
         self.rain = [[rng.randint(0, W), rng.randint(0, H), rng.randint(9, 18)] for _ in range(130)]
         self.skyline = self._make_skyline()
@@ -130,6 +144,9 @@ class Game:
             elif self.state == "sim" and self.sim_lab:
                 if self.sim_lab.handle_event(e) == "back":
                     self.go("lab")
+            elif self.state == "rank" and self.rank_lab:
+                if self.rank_lab.handle_event(e) == "back":
+                    self.go("lab")
         if e.type == pygame.MOUSEBUTTONDOWN and e.button == 1:
             if self.ui.hit(e.pos):
                 return
@@ -141,6 +158,8 @@ class Game:
                 self.send_t = 1e9
             elif self.state == "sim" and self.sim_lab:
                 self.sim_lab.handle_event(e)
+            elif self.state == "rank" and self.rank_lab:
+                self.rank_lab.handle_event(e)
 
     def on_escape(self):
         s = self.state
@@ -156,6 +175,8 @@ class Game:
         elif s == "briefing":
             self.go("cases")
         elif s == "sim":
+            self.go("lab")
+        elif s == "rank":
             self.go("lab")
         elif s == "lab":
             self.go("lab")
@@ -263,6 +284,19 @@ class Game:
         except Exception as exc:
             self.say("Similarity lab error: " + str(exc)[:60])
 
+    def open_rank(self):
+        if RankLab is None:
+            self.say("Rank lab module not available.")
+            return
+        try:
+            if self.rank_lab is None:
+                self.rank_lab = RankLab(str(ROOT / "evidence.csv"))
+            if self.case:
+                self.rank_lab.select_case(self.case["id"])
+            self.go("rank")
+        except Exception as exc:
+            self.say("Rank lab error: " + str(exc)[:60])
+
     # ------------------------------------------------------------ drawing
     def draw(self):
         s = self.screen
@@ -271,9 +305,9 @@ class Game:
         fn = {"menu": self.draw_menu, "cases": self.draw_cases, "briefing": self.draw_briefing,
               "scene": self.draw_scene, "send": self.draw_send, "lab": self.draw_lab,
               "deduce": self.draw_deduce, "ending": self.draw_ending, "data": self.draw_data,
-              "sim": self.draw_sim}[self.state]
+              "sim": self.draw_sim, "rank": self.draw_rank}[self.state]
         fn()
-        if self.toast[1] > 0 and self.state != "sim":
+        if self.toast[1] > 0 and self.state not in ("sim", "rank"):
             msg = self.toast[0]
             w = F["body"].size(msg)[0] + 40
             r = pygame.Rect(W // 2 - w // 2, 70, w, 38)
@@ -666,7 +700,9 @@ class Game:
             txt(s, f[:5].upper(), (x + bw // 2, pr.y + 100), F["mono_s"], MUTED, "center")
         # bottom buttons
         txt(s, self._closest_text(), (24, 678), F["small"], MUTED)
-        para(s, DISCLAIMER, 24, 700, 530, F["small"], (120, 114, 100), 1, max_lines=3)
+        para(s, DISCLAIMER, 24, 700, 400, F["small"], (120, 114, 100), 1, max_lines=3)
+        self.ui.button("RANK / PIVOTS", (W - 780, 690, 160, 48), self.open_rank, "ghost",
+                       disabled=RankLab is None, font=F["smallb"])
         self.ui.button("COMPARE CASES (SIMILARITY LAB)", (W - 610, 690, 330, 48), self.open_similarity, "ghost",
                        disabled=SimilarityLab is None, font=F["smallb"])
         self.ui.button("TO THE CASE BOARD  >", (W - 260, 690, 240, 48), self.begin_deduction, "primary")
@@ -815,7 +851,8 @@ class Game:
         txt(s, "MODULES", (r.x + 30, y), F["mono"], RED)
         y += 32
         txt(s, f"similarity.py: {'loaded' if sim else 'NOT loaded'}     similarity_lab.py: "
-               f"{'loaded' if SimilarityLab else 'NOT loaded'}", (r.x + 30, y), F["small"], INK)
+               f"{'loaded' if SimilarityLab else 'NOT loaded'}     rank_lab.py: "
+               f"{'loaded' if RankLab else 'NOT loaded'}", (r.x + 30, y), F["small"], INK)
         y += 30
         if self.data.errors:
             txt(s, "PROBLEMS FOUND", (r.x + 30, y), F["mono"], RED)
@@ -831,6 +868,14 @@ class Game:
             self.go("lab")
             return
         self.sim_lab.draw(self.screen)
+        self.ui.button("<- BACK TO LAB", (W - 220, 22, 190, 38), lambda: self.go("lab"), "ghost", font=F["smallb"])
+
+    # ---- rank lab -----------------------------------------------------
+    def draw_rank(self):
+        if self.rank_lab is None:
+            self.go("lab")
+            return
+        self.rank_lab.draw(self.screen)
         self.ui.button("<- BACK TO LAB", (W - 220, 22, 190, 38), lambda: self.go("lab"), "ghost", font=F["smallb"])
 
     # ------------------------------------------------------------ loop
